@@ -1,0 +1,9 @@
+services:
+  core:
+    build: core
+    ports:
+      - 8080:5000
+  edge:
+    build: edge
+    ports:
+      - 8081:5000
