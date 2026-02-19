@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>CDN Video Upload</title>
+    <script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/dropzone@5/dist/min/dropzone.min.css" type="text/css" />
+
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; padding-top: 50px; background: #f4f4f9; }
+        .container { width: 600px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; }
+        #my-dropzone { border: 2px dashed #0087F7; border-radius: 5px; background: white; min-height: 200px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Upload Video to Core</h2>
+    <form action="/upload" class="dropzone" id="my-dropzone" method="POST" enctype="multipart/form-data">
+        <div class="dz-message">
+            Drag videos here or click to upload.
+        </div>
+    </form>
+</div>
+
+<script>
+    // Optional: Configure Dropzone behavior
+    Dropzone.options.myDropzone = {
+        paramName: "file", // The name used in request.files['file']
+        maxFilesize: 500,  // MB
+        acceptedFiles: "video/*",
+        init: function() {
+            this.on("success", function(file, response) {
+                console.log("Upload complete:", response);
+            });
+        }
+    };
+</script>
+
+</body>
+</html>
