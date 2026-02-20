@@ -1,9 +1,58 @@
 services:
-  core:
-    build: core
+  minio:
+    image: quay.io/minio/minio
     ports:
-      - 8080:5000
-  edge:
-    build: edge
+      - "${MINIO_API_PORT}:${MINIO_API_PORT}"
+      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${STORAGE_ROOT_PASSWORD}
+    volumes:
+      - ./storage:/data
+    command: ["server", "/data", "--address", ":${MINIO_API_PORT}", "--console-address", ":${MINIO_CONSOLE_PORT}"]
+
+  rabbitmq:
+    image: rabbitmq:3-management
     ports:
-      - 8081:5000
+      - "${MESSAGE_PORT}:5672"
+      - "${WEBUI_PORT}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+
+  redis_backend:
+    image: redis:7-alpine
+
+  video_worker:
+    build:
+      context: workers/video
+      dockerfile: Dockerfile
+    environment:
+      MINIO_ENDPOINT: minio:${MINIO_API_PORT}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_DEFAULT_HOST: ${RABBITMQ_HOST}
+      MINIO_ROOT_USER: ${STORAGE_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${STORAGE_ROOT_PASSWORD}
+    depends_on:
+      - minio
+      - rabbitmq
+      - redis_backend
+
+  core_server:
+    build:
+      context: core
+      dockerfile: Dockerfile
+    ports:
+      - "${APP_PORT}:5000"
+    environment:
+      MINIO_ENDPOINT: minio:${MINIO_API_PORT}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_DEFAULT_HOST: ${RABBITMQ_HOST}
+      MINIO_ROOT_USER: ${STORAGE_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${STORAGE_ROOT_PASSWORD}
+    depends_on:
+      - minio
+      - rabbitmq
+      - redis_backend
