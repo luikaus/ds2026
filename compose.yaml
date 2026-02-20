@@ -2,14 +2,14 @@ services:
   minio:
     image: quay.io/minio/minio
     ports:
-      - "${MINIO_API_PORT}:9000"
-      - "${MINIO_CONSOLE_PORT}:9001"
+      - "${MINIO_API_PORT}:${MINIO_API_PORT}"
+      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"
     environment:
       MINIO_ROOT_USER: ${STORAGE_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${STORAGE_ROOT_PASSWORD}
     volumes:
       - ./storage:/data
-    command: ["server", "/data", "--console-address", ":${MINIO_CONSOLE_PORT}"]
+    command: ["server", "/data", "--address", ":${MINIO_API_PORT}", "--console-address", ":${MINIO_CONSOLE_PORT}"]
 
   rabbitmq:
     image: rabbitmq:3-management
