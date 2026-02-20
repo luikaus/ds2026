@@ -56,3 +56,8 @@ services:
       - minio
       - rabbitmq
       - redis_backend
+
+  client:
+    build: client
+    ports:
+      - 8082:80
