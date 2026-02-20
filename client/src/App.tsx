@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { client } from './api';
+import { client, type Video } from './api';
 
 function App() {
-  const [video, setVideo] = useState(null);
-  const [videos, setVideos] = useState([]);
+  const [video, setVideo] = useState<Video | null>(null);
+  const [videos, setVideos] = useState<Video[]>([]);
 
   useEffect(() => {
     client.getVideos().then(setVideos);
@@ -20,7 +20,7 @@ function App() {
   );
 }
 
-function VideoButton({ title, value, onClick }) {
+function VideoButton({ title, value, onClick }: { title: string, value: Video, onClick: (video: Video) => void }) {
   return <button onClick={() => onClick(value)}>{title}</button>
 }
 

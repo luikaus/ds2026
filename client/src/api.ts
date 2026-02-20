@@ -1,10 +1,18 @@
+export interface Video {
+    id: string;
+    title: string;
+    url: string;
+}
+
 // API client with mocked responses before API is finalized
 export class ApiClient {
-    constructor(baseUrl) {
+    private baseUrl: string;
+
+    constructor(baseUrl: string) {
         this.baseUrl = baseUrl;
     }
 
-    async getVideos() {
+    async getVideos(): Promise<Video[]> {
         // Something like this
         // const res = await fetch(`${baseUrl}/videoIds`);
 
@@ -20,4 +28,4 @@ export class ApiClient {
     }
 }
 
-export const client = new ApiClient(process.env.REACT_APP_API_BASE_URL);
+export const client = new ApiClient(import.meta.env.VITE_API_BASE_URL);
