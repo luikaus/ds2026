@@ -81,7 +81,6 @@ services:
       redis_backend:
           condition: service_healthy
 
-
   video_worker:
     build:
       context: ./workers/video
@@ -106,7 +105,56 @@ services:
           condition: service_healthy
       redis_backend:
           condition: service_healthy
+
   client:
     build: client
     ports:
       - "8082:80"
+
+  edge_node_1:
+    image: nginx:alpine
+    volumes:
+      - ./edge/nginx/edge.conf.template:/etc/nginx/conf.d/default.conf.template:ro
+      - edge1_cache:/var/cache/nginx
+    environment:
+      MINIO_ENDPOINT: "minio:${MINIO_API_PORT}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  edge_node_2:
+    image: nginx:alpine
+    volumes:
+      - ./edge/nginx/edge.conf.template:/etc/nginx/conf.d/default.conf.template:ro
+      - edge2_cache:/var/cache/nginx
+    environment:
+      MINIO_ENDPOINT: "minio:${MINIO_API_PORT}"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  load_balancer:
+    image: nginx:alpine
+    volumes:
+      - ./edge/nginx/lb.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      edge_node_1:
+        condition: service_healthy
+      edge_node_2:
+        condition: service_healthy
+
+volumes:
+  edge1_cache:
+  edge2_cache:
