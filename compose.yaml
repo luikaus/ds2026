@@ -6,10 +6,31 @@ services:
       - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"
     environment:
       MINIO_ROOT_USER: ${STORAGE_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${STORAGE_ROOT_PASSWORD}
+      MINIO_ROOT_PASSWORD: ${STORAGE_ROOT_PASS}
     volumes:
       - ./storage:/data
     command: ["server", "/data", "--address", ":${MINIO_API_PORT}", "--console-address", ":${MINIO_CONSOLE_PORT}"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${MINIO_API_PORT}/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASS}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./storage/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -19,45 +40,73 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
 
   redis_backend:
     image: redis:7-alpine
-
-  video_worker:
-    build:
-      context: workers/video
-      dockerfile: Dockerfile
-    environment:
-      MINIO_ENDPOINT: minio:${MINIO_API_PORT}
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
-      RABBITMQ_DEFAULT_HOST: ${RABBITMQ_HOST}
-      MINIO_ROOT_USER: ${STORAGE_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${STORAGE_ROOT_PASSWORD}
-    depends_on:
-      - minio
-      - rabbitmq
-      - redis_backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
 
   core_server:
     build:
-      context: core
+      context: ./core
       dockerfile: Dockerfile
+    volumes:
+      - ./shared:/app/shared
     ports:
       - "${APP_PORT}:5000"
     environment:
+      PYTHONPATH: /app
       MINIO_ENDPOINT: minio:${MINIO_API_PORT}
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
       RABBITMQ_DEFAULT_HOST: ${RABBITMQ_HOST}
       MINIO_ROOT_USER: ${STORAGE_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${STORAGE_ROOT_PASSWORD}
+      MINIO_ROOT_PASSWORD: ${STORAGE_ROOT_PASS}
+      POSTGRES_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASS}@postgres:5432/${POSTGRES_DB}
     depends_on:
-      - minio
-      - rabbitmq
-      - redis_backend
+      postgres:
+          condition: service_healthy
+      minio:
+          condition: service_healthy
+      rabbitmq:
+          condition: service_healthy
+      redis_backend:
+          condition: service_healthy
 
+
+  video_worker:
+    build:
+      context: ./workers/video
+      dockerfile: Dockerfile
+    volumes:
+      - ./shared:/app/shared
+    environment:
+      PYTHONPATH: /app
+      MINIO_ENDPOINT: minio:${MINIO_API_PORT}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_DEFAULT_HOST: ${RABBITMQ_HOST}
+      MINIO_ROOT_USER: ${STORAGE_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${STORAGE_ROOT_PASS}
+      POSTGRES_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASS}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres:
+          condition: service_healthy
+      minio:
+          condition: service_healthy
+      rabbitmq:
+          condition: service_healthy
+      redis_backend:
+          condition: service_healthy
   client:
     build: client
     ports:
-      - 8082:80
+      - "8082:80"
