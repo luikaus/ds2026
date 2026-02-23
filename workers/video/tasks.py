@@ -1,6 +1,7 @@
 import os
 import subprocess
 import json
+import shutil
 from celery import Celery
 from minio import Minio
 from sqlalchemy import create_engine
@@ -70,15 +71,44 @@ def get_video_dimensions(path):
     return width, height
 
 
+def generate_master_playlist(coded_variants, local_path):
+    hls_metadata = {"1080p": {"bandwidth": 6000 * 10**3, "resolution": "1920x1080"},
+                    "720p": {"bandwidth": 3500 * 10**3, "resolution": "1280x720"},
+                    "360p": {"bandwidth": 1000 * 10**3, "resolution": "640x360"}}
+    master_path = f"{local_path}/master.m3u8"
+    with open(master_path, 'w') as master_playlist:
+        master_playlist.write("#EXTM3U\n")
+        for var in coded_variants:
+            variant_metadata = hls_metadata[var]
+            line = (f"#EXT-X-STREAM-INF:BANDWIDTH={variant_metadata['bandwidth']},"
+                    f"RESOLUTION={variant_metadata['resolution']}\n")
+            master_playlist.write(line)
+            master_playlist.write(f"{var}/index.m3u8\n")
+    return master_path
+
+
+def upload_hls_files(local_path, file_hash):
+    for root, dirs, files in os.walk(local_path):
+        for file in files:
+            file_path = str(os.path.join(root, file))
+            rel_path = os.path.relpath(file_path, local_path)
+            remote_object = f"{file_hash}/{rel_path}"
+
+            storage.fput_object(bucket_name=VIDEO_BUCKET,
+                         object_name=remote_object,
+                         file_path=file_path,
+                         content_type='application/vnd.apple.mpegurl' if file.endswith('.m3u8') else 'video/mp2t')
+
+
 @app.task(name='tasks.transcode_video')
 def transcode_video(file_hash):
     set_video_status(file_hash, status='processing')
-    local_source = None
+    local_path = None
     try:
 
         obj_info = storage.stat_object(bucket_name=TMP_BUCKET, object_name=file_hash)
 
-        # (MinIO prefixes custom metadata with x-amz-meta-)
+        # MinIO prefixes custom metadata with x-amz-meta-
         original_name = obj_info.metadata.get('x-amz-meta-file-name')
 
         local_source = f"/tmp/{original_name}"
@@ -96,12 +126,17 @@ def transcode_video(file_hash):
         if orig_w < variants["360p"][0] or orig_h < variants["360p"][1]:
             raise ValueError("Invalid video dimensions!")
 
-        for key, [w, h] in variants.items():
+        coded_variants = []
+        local_path = f"/tmp/{file_hash}"
+        os.makedirs(local_path, exist_ok=True)
+
+        for resolution, [w, h] in reversed(variants.items()):
 
             if orig_w < w or orig_h < h:
                 continue
 
-            output_file = f"/tmp/{file_hash}_{key}.mp4"
+            output_dir = f"/tmp/{file_hash}/{resolution}"
+            os.makedirs(output_dir, exist_ok=True)
 
             vf_args = (
                 f"scale={w}x{h}:force_original_aspect_ratio=decrease,"
@@ -110,18 +145,22 @@ def transcode_video(file_hash):
 
             cmd = ["ffmpeg", "-y", "-i", local_source,
                    "-vf", vf_args,
-                   "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-                   "-c:a", "aac", "-strict", "-2",
-                   output_file]
+                   "-c:v", "libx264",
+                   "-preset", "veryfast",
+                   "-g", "48", "-sc_threshold", "0",
+                   "-c:a", "aac", "-b:a", "128k",
+                   "-hls_time", "4",
+                   "-hls_playlist_type", "vod",
+                   "-hls_segment_filename", f"{output_dir}/seg_%03d.ts",
+                   f"{output_dir}/index.m3u8"]
 
             subprocess.run(cmd, check=True)
+            coded_variants.append(resolution)
 
-            # Upload to permanent database
-            storage.fput_object(bucket_name=VIDEO_BUCKET,
-                                object_name=f"{file_hash}/{key}.mp4",
-                                file_path=output_file)
-            os.remove(output_file)
+        # Upload files to blob storage
+        upload_hls_files(local_path, file_hash)
 
+        # Generate and upload thumbnail
         thumbnail = f"/tmp/{file_hash}_thumbnail.jpg"
         subprocess.run(["ffmpeg", "-y",
                         "-ss", "00:00:01",
@@ -130,20 +169,24 @@ def transcode_video(file_hash):
                         "-q:v", "2",
                         "-update", "1"
                         ,thumbnail])
-
         storage.fput_object(VIDEO_BUCKET, f"{file_hash}/thumbnail.jpg", thumbnail)
 
-        os.remove(local_source)
-        storage.remove_object("temp-uploads", file_hash)
+        # Generate and upload master playlist
+        master_path = generate_master_playlist(coded_variants, local_path)
+        storage.fput_object(VIDEO_BUCKET, f"{file_hash}/master.m3u8", master_path)
 
         set_video_status(file_hash, status='ready')
         print(f"Transcoding successful for {original_name}!")
 
     except Exception as e:
         set_video_status(file_hash, status='error')
+        data_to_clean = storage.list_objects(VIDEO_BUCKET, prefix=f"{file_hash}/", recursive=True)
+        for data in data_to_clean:
+            storage.remove_object(VIDEO_BUCKET, data.object_name)
         print(f"[TRANSCODING ERROR] transcoding failed for {file_hash}: {e}")
         return
 
     finally:
-        if local_source and os.path.exists(local_source):
-            os.remove(local_source)
+        if local_path and os.path.exists(local_path):
+            shutil.rmtree(local_path)
+            storage.remove_object(TMP_BUCKET, file_hash)

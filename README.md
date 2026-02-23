@@ -19,3 +19,4 @@ docker compose up --build
 ```
 
 The client will be available at http://localhost:8082
+
