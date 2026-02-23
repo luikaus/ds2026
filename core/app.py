@@ -93,8 +93,10 @@ def upload_file():
     # Add video metadata to SQL database
     # TODO: Link data to user
     video_data = VideoModel(
-        video_hash=file_hash,
-        file_name=file_name
+        id=file_hash,
+        user_id=0,
+        title=file_name,
+        status='pending'
     )
     db.session.add(video_data)
     db.session.commit()
@@ -103,3 +105,19 @@ def upload_file():
     celery_app.send_task('tasks.transcode_video', args=[file_hash])
 
     return jsonify({"status": "success", "filename": file_name})
+
+
+@app.route("/api/videos", methods=['GET'])
+def get_all_videos():
+    # TODO: Possible improvement by having some search query in URL
+    videos = db.session.query(VideoModel).filter_by(status='ready').all()
+    results = []
+    for video in videos:
+        results.append({
+            "id": video.id,
+            "title": video.title,
+            "user_id": video.user_id,
+            "status": video.status,
+            "created_at": video.created_at
+        })
+    return jsonify(results)

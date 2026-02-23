@@ -11,9 +11,9 @@ class VideoModel(Base):
     """
     __tablename__ = 'videos'
 
-    video_hash = Column(String(64), primary_key=True)
     # TODO: Create users table and link to it with users_id
+    id = Column(String(64), primary_key=True)
     user_id = Column(Integer, nullable=False, default=0)
-    file_name = Column(String(255), nullable=False)
+    title = Column(String(255), nullable=False)
     status = Column(String(20), nullable=False, default='pending')
     created_at = Column(DateTime, nullable=False, default=datetime.now(UTC))

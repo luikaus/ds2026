@@ -45,7 +45,7 @@ session_factory = sessionmaker(bind=engine)
 def set_video_status(file_hash, status):
     session = session_factory()
     try:
-        video = session.query(VideoModel).filter_by(video_hash=file_hash).first()
+        video = session.query(VideoModel).filter_by(id=file_hash).first()
         if video:
             video.status = status
             session.commit()
