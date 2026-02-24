@@ -25,8 +25,8 @@ rabbitmq_host = os.getenv('RABBITMQ_DEFAULT_HOST', 'rabbitmq')
 
 templates_path = os.path.join(os.path.dirname(__file__), 'templates')
 
-broker_url = f"amqp://{rabbitmq_user}:{rabbitmq_pass}@{rabbitmq_host}:5672"
-result_backend = "redis://redis_backend:6379/0"
+broker_url = f"amqp://{rabbitmq_user}:{rabbitmq_pass}@{rabbitmq_host}:5672//"
+result_backend = "redis://redis-backend:6379/0"
 
 # Setup and configure flask: allow uploads up to 500MB
 app = Flask(__name__, template_folder=templates_path)
@@ -54,6 +54,7 @@ def get_file_hash(file_stream):
 
 @app.route('/upload', methods=['GET'])
 def upload_page():
+    app.logger.info("Hello")
     return render_template('upload.html')
 
 
@@ -104,10 +105,10 @@ def upload_file():
     # Start video transcoding process
     celery_app.send_task('tasks.transcode_video', args=[file_hash])
 
-    return jsonify({"status": "success", "filename": file_name})
+    return jsonify({"status": "success", "filename": file_name}), 201
 
 
-@app.route("/api/videos", methods=['GET'])
+@app.route("/videos", methods=['GET'])
 def get_all_videos():
     # TODO: Possible improvement by having some search query in URL
     videos = db.session.query(VideoModel).filter_by(status='ready').all()
@@ -120,4 +121,5 @@ def get_all_videos():
             "status": video.status,
             "created_at": video.created_at
         })
-    return jsonify(results)
+    print(results)
+    return jsonify(results), 200

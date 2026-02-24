@@ -18,5 +18,10 @@ Or to start it in the foreground
 docker compose up --build
 ```
 
-The client will be available at http://localhost:8082
+The client will be available at http://localhost/
 
+##### Backend:
+- Data of all available videos: http://localhost/videos
+- Upload a new video: http://localhost/upload
+- Get thumbnail of video: `http://localhost/thumbnail/{video_id}`
+- Get video HLS master playlist: `http://localhost/video/{video_id}`

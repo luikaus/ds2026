@@ -28,7 +28,7 @@ rabbitmq_host = os.getenv('RABBITMQ_DEFAULT_HOST', 'rabbitmq')
 
 # RabbitMQ format: amqp://user:password@hostname:port//
 broker_url = f"amqp://{rabbitmq_user}:{rabbitmq_pass}@{rabbitmq_host}:5672//"
-result_backend = "redis://redis_backend:6379/0"
+result_backend = "redis://redis-backend:6379/0"
 engine = create_engine(postgres_endpoint)
 
 app = Celery('tasks', broker=broker_url, backend=result_backend)
