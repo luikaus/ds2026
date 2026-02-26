@@ -13,18 +13,18 @@ export class ApiClient {
   }
 
   async getVideos(): Promise<Video[]> {
-    // Something like this
-    // const res = await fetch(`${baseUrl}/videoIds`);
+    const res = await fetch(`${this.baseUrl}/videos`);
+    if (!res.ok) {
+      console.error('Failed to get video list', res)
+      return [];
+    }
 
-    // For now, we just have a placeholder
-    await new Promise(res => setTimeout(res, 1000));
-    const videoIds = ['video-1', 'video-2', 'video-3'];
+    const data = await res.json() as { id: string, title: string }[];
 
-    return videoIds.map(id => ({
-      id,
-      title: id,
-      // url: `${this.baseUrl}/video/${id}`,
-      url: `https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8`,
+    return data.map(v => ({
+      id: v.id,
+      title: v.title,
+      url: `${this.baseUrl}/video/${v.id}/master.m3u6`,
     }));
   }
 }

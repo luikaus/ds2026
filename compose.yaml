@@ -122,8 +122,6 @@ services:
 
   client:
     build: client
-    ports:
-      - 3000:3000
 
   edge-node-1:
     image: nginx:alpine
