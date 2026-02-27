@@ -1,13 +1,7 @@
 """
-Distributed ML - Increment 11
+Distributed ML
 Predicts video demand spikes in near-real-time using a RandomForestRegressor
 that analyzes aggregated logs across edge nodes.
-
-This module:
-1. Fetches features from the analytics database (VideoStats + VideoEvent)
-2. Trains a model (or loads an existing one)
-3. Writes predictions back to analytics_predictions table
-4. Exposes predictions via the Flask app at GET /predictions
 
 Run standalone:
     python ml.py          # train and predict
@@ -157,7 +151,7 @@ def run_predictions():
         session.close()
 
 
-# ── Flask route helper (called from app.py) ──────────────────────────────────
+# Flask route helper (called from app.py)
 
 def get_latest_predictions(session, limit=10):
     """Returns the most recent predictions per video."""

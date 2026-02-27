@@ -124,7 +124,7 @@ services:
       redis-backend:
         condition: service_healthy
 
-  # ── NEW: Analytics Server (Increment 8, 10, 11) ───────────────────────────
+  #  Analytics Server
   analytics-server:
     build:
       context: ./analytics

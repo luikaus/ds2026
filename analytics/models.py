@@ -32,7 +32,6 @@ class VideoStats(Base):
     """
     Denormalized running aggregates — updated on every event.
     Fast reads for /metrics and /popular endpoints.
-    Also used as feature input for the ML model in Increment 11.
     """
     __tablename__ = 'analytics_stats'
 
@@ -45,8 +44,8 @@ class VideoStats(Base):
 
 class MLPrediction(Base):
     """
-    Stores predictions made by the distributed ML model (Increment 11).
-    Predictions are written by the batch job and read by the scheduler (Increment 6).
+    Stores predictions made by the distributed ML model .
+    Predictions are written by the batch job and read by the scheduler .
     """
     __tablename__ = 'analytics_predictions'
 

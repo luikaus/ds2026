@@ -1,11 +1,7 @@
 """
-Batch Processor - Increment 10
+Batch Processor
 Processes event logs in a batch job to extract content popularity patterns.
 Run this as a scheduled job (cron or Celery beat) every N minutes.
-
-Usage:
-    python batch.py                    # process all unprocessed events
-    python batch.py --window-hours 24  # analyze last 24 hours
 """
 import os
 import argparse
@@ -32,7 +28,7 @@ def run_batch(window_hours: int = 1):
         since = datetime.now(UTC) - timedelta(hours=window_hours)
         print(f"[BATCH] Running batch for window: last {window_hours}h (since {since.isoformat()})")
 
-        # ── 1. Aggregate request counts per video ──────────────────────────
+        #  Aggregate request counts per video
         rows = (session.query(
                     VideoEvent.video_id,
                     func.count(VideoEvent.id).label('total'),
@@ -49,7 +45,7 @@ def run_batch(window_hours: int = 1):
 
         print(f"[BATCH] Found {len(rows)} unique videos with activity in window")
 
-        # ── 2. Upsert into VideoStats ──────────────────────────────────────
+        # Upsert into VideoStats 
         for row in rows:
             stats = session.query(VideoStats).filter_by(video_id=row.video_id).first()
             if not stats:
@@ -66,7 +62,7 @@ def run_batch(window_hours: int = 1):
         session.commit()
         print("[BATCH] Stats updated successfully")
 
-        # ── 3. Print popularity ranking ────────────────────────────────────
+        #Print popularity ranking
         top = (session.query(VideoStats)
                .order_by(VideoStats.total_requests.desc())
                .limit(5)

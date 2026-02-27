@@ -1,5 +1,4 @@
 """
-Analytics Server - Increment 8
 Logging and analytics middleware to track popular content, QoS metrics, and user sessions.
 """
 import os
@@ -9,7 +8,7 @@ from flask_sqlalchemy import SQLAlchemy
 from shared import Base
 from models import VideoEvent, VideoStats
 
-# ─── Config ───────────────────────────────────────────────────────────────────
+# Config
 postgres_endpoint = os.getenv('POSTGRES_URL')
 
 app = Flask(__name__)
@@ -22,7 +21,7 @@ with app.app_context():
     db.create_all()
 
 
-# ─── Routes ───────────────────────────────────────────────────────────────────
+#  Routes
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -31,19 +30,7 @@ def health():
 
 @app.route('/event', methods=['POST'])
 def receive_event():
-    """
-    Receives analytics events from edge nodes and core-server.
 
-    Expected body:
-    {
-        "video_id":    "abc123",
-        "event_type":  "cache_hit" | "cache_miss" | "upload" | "transcode_done",
-        "edge_id":     "edge-node-1",   # optional for core events
-        "user_ip":     "192.168.1.1",   # optional
-        "file_type":   "ts" | "m3u8",   # optional
-        "duration_ms": 42               # optional: request duration
-    }
-    """
     data = request.get_json(silent=True)
     if not data or 'video_id' not in data or 'event_type' not in data:
         return jsonify({"error": "Missing required fields: video_id, event_type"}), 400
@@ -85,10 +72,7 @@ def _update_stats(video_id: str, event_type: str):
 
 @app.route('/metrics', methods=['GET'])
 def get_metrics():
-    """
-    Returns overall system metrics.
-    Used by Increment 10 (batch processing consumer).
-    """
+
     stats = db.session.query(VideoStats).all()
     total_hits = sum(s.cache_hits for s in stats)
     total_misses = sum(s.cache_misses for s in stats)
@@ -105,10 +89,7 @@ def get_metrics():
 
 @app.route('/popular', methods=['GET'])
 def get_popular():
-    """
-    Returns ranked list of videos by total requests.
-    Used by Increment 10 (popularity patterns) and Increment 11 (ML features).
-    """
+
     limit = request.args.get('limit', 10, type=int)
     stats = (db.session.query(VideoStats)
              .order_by(VideoStats.total_requests.desc())
@@ -127,16 +108,7 @@ def get_popular():
 
 @app.route('/event/nginx', methods=['GET', 'POST'])
 def receive_nginx_mirror():
-    """
-    Receives mirrored requests from NGINX edge nodes.
-    NGINX mirror passes metadata as headers instead of JSON body.
 
-    Headers used:
-        X-Original-URI   e.g. /video/abc123/seg_001.ts
-        X-Cache-Status   HIT | MISS | EXPIRED
-        X-Edge-ID        edge-node-1 / edge-node-2
-        X-Client-IP      original client IP
-    """
     uri = request.headers.get('X-Original-URI', '')
     cache_status = request.headers.get('X-Cache-Status', '').upper()
     edge_id = request.headers.get('X-Edge-ID', 'unknown')
@@ -178,11 +150,7 @@ def receive_nginx_mirror():
 
 @app.route('/events', methods=['GET'])
 def get_events():
-    """
-    Returns raw event log. Accepts optional query params:
-    ?video_id=abc123&limit=100&event_type=cache_miss
-    Used by Increment 10 batch job and Increment 11 ML training.
-    """
+
     video_id = request.args.get('video_id')
     event_type = request.args.get('event_type')
     limit = request.args.get('limit', 100, type=int)
