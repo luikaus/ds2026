@@ -16,10 +16,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app, model_class=Base)
 
-#with app.app_context():
-    #db.create_all()
-
-
 #  Routes
 
 @app.route('/health', methods=['GET'])

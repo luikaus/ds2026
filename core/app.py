@@ -7,6 +7,9 @@ from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from shared.models import Base, VideoModel
 
+# Valid file types
+VALID_TYPES = [".mp4", ".avi", ".webm", ".ogg"]
+
 # Bucket paths
 TMP_BUCKET = 'temp-uploads'
 
@@ -68,10 +71,13 @@ def upload_file():
         return "No selected file", 400
 
     # Get all necessary data from file
-    # TODO: some file extension validation checks?
     file_name = secure_filename(file.filename)
     file_hash = get_file_hash(file.stream)
     _, extension = os.path.splitext(file_name)
+
+    if extension not in VALID_TYPES:
+        return "Invalid file type", 400
+
     file_metadata = {"file-name": file_name,
                      "ext": extension,
                      "user-id'": "default_user"}
@@ -82,14 +88,22 @@ def upload_file():
     if not storage.bucket_exists(TMP_BUCKET):
         storage.make_bucket(TMP_BUCKET)
 
-    # Upload temp raw video
-    storage.put_object(bucket_name=TMP_BUCKET,
-                       object_name=file_hash,
-                       data=file.stream,
-                       length=file_size,
-                       part_size=10 * 1024 * 1024,
-                       content_type=file.content_type,
-                       metadata=file_metadata)
+    if db.session.query(VideoModel).filter_by(id=file_hash).first():
+        return f"File already exists!", 400
+
+    try:
+        # Upload temp raw video
+        storage.put_object(bucket_name=TMP_BUCKET,
+                           object_name=file_hash,
+                           data=file.stream,
+                           length=file_size,
+                           part_size=10 * 1024 * 1024,
+                           content_type=file.content_type,
+                           metadata=file_metadata)
+
+    except Exception as e:
+        print(f"Error uploading file to storage: {e}")
+        return "Error uploading file to storage!", 500
 
     # Add video metadata to SQL database
     # TODO: Link data to user
@@ -110,7 +124,7 @@ def upload_file():
 
 @app.route("/videos", methods=['GET'])
 def get_all_videos():
-    # TODO: Possible improvement by having some search query in URL
+    # TODO: Possible future improvements by having some search query in URL
     videos = db.session.query(VideoModel).filter_by(status='ready').all()
     results = []
     for video in videos:
