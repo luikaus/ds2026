@@ -5,8 +5,7 @@ import os
 from datetime import datetime, UTC
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from shared import Base
-from models import VideoEvent, VideoStats
+from shared.models import Base, VideoEvent, VideoStats
 
 # Config
 postgres_endpoint = os.getenv('POSTGRES_URL')
@@ -17,8 +16,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app, model_class=Base)
 
-with app.app_context():
-    db.create_all()
+#with app.app_context():
+    #db.create_all()
 
 
 #  Routes
@@ -114,6 +113,7 @@ def receive_nginx_mirror():
     edge_id = request.headers.get('X-Edge-ID', 'unknown')
     client_ip = request.headers.get('X-Client-IP')
 
+    print(f"Received: \nURI: {uri} \nCache Status: {cache_status} \nEdge ID: {edge_id} \nClient IP: {client_ip}")
     # Extract video_id and file type from URI
     # URI format: /video/<video_id>/seg_001.ts  OR  /video/<video_id>/master.m3u8
     parts = [p for p in uri.split('/') if p]

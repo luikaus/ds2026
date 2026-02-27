@@ -11,7 +11,7 @@ from collections import defaultdict
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 
-from models import VideoEvent, VideoStats, MLPrediction
+from shared.models import VideoEvent, VideoStats
 
 postgres_endpoint = os.getenv('POSTGRES_URL')
 engine = create_engine(postgres_endpoint)

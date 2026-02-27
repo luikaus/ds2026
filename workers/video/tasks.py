@@ -6,7 +6,7 @@ from celery import Celery
 from minio import Minio
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from shared import VideoModel
+from shared.models import VideoModel
 
 
 # Bucket paths

@@ -16,7 +16,7 @@ import numpy as np
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 
-from models import VideoEvent, VideoStats, MLPrediction
+from shared.models import VideoEvent, VideoStats, MLPrediction
 
 warnings.filterwarnings('ignore')
 

@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify, render_template
 from minio import Minio
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
-from shared import Base, VideoModel
+from shared.models import Base, VideoModel
 
 # Bucket paths
 TMP_BUCKET = 'temp-uploads'
