@@ -24,7 +24,7 @@ export class ApiClient {
     return data.map(v => ({
       id: v.id,
       title: v.title,
-      url: `${this.baseUrl}/video/${v.id}/master.m3u6`,
+      url: `${this.baseUrl}/video/${v.id}/master.m3u8`,
     }));
   }
 }

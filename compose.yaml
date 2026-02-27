@@ -16,7 +16,6 @@ services:
       timeout: 5s
       retries: 3
 
-  # Changes video storage to be public read
   minio-setup:
     image: minio/mc
     depends_on:
@@ -85,15 +84,19 @@ services:
       MINIO_ROOT_USER: ${STORAGE_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${STORAGE_ROOT_PASS}
       POSTGRES_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASS}@postgres:5432/${POSTGRES_DB}
+      # Analytics server URL for core events (upload, transcode)
+      ANALYTICS_URL: http://analytics-server:5001
     depends_on:
       postgres:
-          condition: service_healthy
+        condition: service_healthy
       minio:
-          condition: service_healthy
+        condition: service_healthy
       rabbitmq:
-          condition: service_healthy
+        condition: service_healthy
       redis-backend:
-          condition: service_healthy
+        condition: service_healthy
+      analytics-server:
+        condition: service_started
 
   video-worker:
     build:
@@ -110,15 +113,32 @@ services:
       MINIO_ROOT_USER: ${STORAGE_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${STORAGE_ROOT_PASS}
       POSTGRES_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASS}@postgres:5432/${POSTGRES_DB}
+      ANALYTICS_URL: http://analytics-server:5001
     depends_on:
       postgres:
-          condition: service_healthy
+        condition: service_healthy
       minio:
-          condition: service_healthy
+        condition: service_healthy
       rabbitmq:
-          condition: service_healthy
+        condition: service_healthy
       redis-backend:
-          condition: service_healthy
+        condition: service_healthy
+
+  # ── NEW: Analytics Server (Increment 8, 10, 11) ───────────────────────────
+  analytics-server:
+    build:
+      context: ./analytics
+      dockerfile: Dockerfile
+    volumes:
+      - ./shared:/app/shared
+    ports:
+      - "5001:5001"
+    environment:
+      PYTHONPATH: /app
+      POSTGRES_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASS}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   client:
     build: client
@@ -126,6 +146,7 @@ services:
   edge-node-1:
     image: nginx:alpine
     volumes:
+      # CHANGED: now uses the updated edge.conf with mirror module
       - ./edge/nginx/edge.conf:/etc/nginx/conf.d/default.conf:ro
       - edge1_cache:/var/cache/nginx
     environment:
@@ -135,6 +156,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      analytics-server:
+        condition: service_started
 
   edge-node-2:
     image: nginx:alpine
@@ -148,6 +171,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      analytics-server:
+        condition: service_started
 
   load-balancer:
     image: nginx:alpine
