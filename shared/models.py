@@ -4,6 +4,33 @@ from datetime import datetime, UTC
 
 Base = declarative_base()
 
+
+class UserModel(Base):
+    """
+    User Model. SQL table model for user data.
+    """
+    __tablename__ = 'users'
+
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    username      = Column(String(50), nullable=False, unique=True)
+    email         = Column(String(100), nullable=False, unique=True)
+    password_hash = Column(String(255), nullable=False)
+    first_name    = Column(String(100), nullable=True)
+    last_name     = Column(String(100), nullable=True)
+    status        = Column(String(10), nullable=False, default='active')
+    created_at    = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
+    updated_at    = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+                                                        
+
+    __table_args__ = (
+        CheckConstraint("status IN ('active', 'inactive', 'banned')", name='users_status_check'),
+    )
+
+    
+    videos = relationship('VideoModel', back_populates='user')
+
+
+
 # Postgres video table model
 class VideoModel(Base):
     """
@@ -11,9 +38,8 @@ class VideoModel(Base):
     """
     __tablename__ = 'videos'
 
-    # TODO: Create users table and link to it with users_id
     id = Column(String(64), primary_key=True)
-    user_id = Column(Integer, nullable=False, default=0)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     title = Column(String(255), nullable=False)
     status = Column(String(20), nullable=False, default='pending')
     created_at = Column(DateTime, nullable=False, default=datetime.now(UTC))
