@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify, render_template
 from minio import Minio
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
-from shared.models import Base, VideoModel
+from shared.models import Base, VideoModel, UserModel
 
 # Valid file types
 VALID_TYPES = [".mp4", ".avi", ".webm", ".ogg"]
@@ -37,8 +37,6 @@ app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
 app.config['SQLALCHEMY_DATABASE_URI'] = postgres_endpoint
 db = SQLAlchemy(app, model_class=Base)
 
-with app.app_context():
-    db.create_all()
 
 celery_app = Celery('tasks',
                     broker=broker_url,
@@ -53,6 +51,30 @@ def get_file_hash(file_stream):
         hasher.update(chunk)
     file_stream.seek(0)
     return hasher.hexdigest()
+
+
+def init_mock_users():
+    """
+    Add mock-users to database.
+    """
+    mock_users = [
+        UserModel(username='vivi',  email='vivirta@gmail.org', password_hash='1234', first_name='Ville', last_name='Virta'),
+        UserModel(username='kaal',  email='kaand@gmail.org',   password_hash='4321', first_name='Kalle', last_name='Anderson'),
+        UserModel(username='jawi',  email='jawill@gmail.org',  password_hash='0000', first_name='Jack',  last_name='Williams'),
+    ]
+
+    for user in mock_users:
+        existing = db.session.query(UserModel).filter_by(username=user.username).first()
+        if not existing:
+            db.session.add(user)
+
+    db.session.commit()
+    app.logger.info("Mock users initialised")
+
+
+with app.app_context():
+    db.create_all()
+    init_mock_users()
 
 
 @app.route('/upload', methods=['GET'])
