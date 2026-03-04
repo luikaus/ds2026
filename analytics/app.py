@@ -177,5 +177,8 @@ def get_events():
 from ml_routes import register_ml_routes
 register_ml_routes(app, db)
 
+from schedule_routes import register_schedule_routes
+register_schedule_routes(app, db)
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=False)
