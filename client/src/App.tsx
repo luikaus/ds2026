@@ -8,6 +8,10 @@ function App() {
 
   useEffect(() => {
     client.getVideos().then(setVideos);
+    const interval = setInterval(() => {
+      client.getVideos().then(setVideos);
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   return (

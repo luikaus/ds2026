@@ -2,11 +2,25 @@ import os
 import subprocess
 import json
 import shutil
+import requests
 from celery import Celery
 from minio import Minio
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from shared.models import VideoModel
+
+analytics_url = os.getenv('ANALYTICS_URL')
+
+
+def send_analytics_event(video_id: str, event_type: str):
+    if not analytics_url:
+        return
+    try:
+        requests.post(f"{analytics_url}/event",
+                      json={"video_id": video_id, "event_type": event_type},
+                      timeout=1)
+    except Exception:
+        pass
 
 
 # Bucket paths
@@ -139,8 +153,8 @@ def transcode_video(file_hash):
             os.makedirs(output_dir, exist_ok=True)
 
             vf_args = (
-                f"scale={w}x{h}:force_original_aspect_ratio=decrease,"
-                f"pad=x=(ow-iw)/2:y=(oh-ih)/2:aspect=16/9"
+                f"scale={w}:{h}:force_original_aspect_ratio=decrease,"
+                f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2"
             )
 
             cmd = ["ffmpeg", "-y", "-i", local_source,
@@ -176,10 +190,12 @@ def transcode_video(file_hash):
         storage.fput_object(VIDEO_BUCKET, f"{file_hash}/master.m3u8", master_path)
 
         set_video_status(file_hash, status='ready')
+        send_analytics_event(file_hash, 'transcode_done')
         print(f"Transcoding successful for {original_name}!")
 
     except Exception as e:
         set_video_status(file_hash, status='error')
+        send_analytics_event(file_hash, 'transcode_error')
         data_to_clean = storage.list_objects(VIDEO_BUCKET, prefix=f"{file_hash}/", recursive=True)
         for data in data_to_clean:
             storage.remove_object(VIDEO_BUCKET, data.object_name)

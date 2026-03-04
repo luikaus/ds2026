@@ -1,11 +1,25 @@
 import hashlib
 import os
+import requests
 from celery import Celery
 from flask import Flask, request, jsonify, render_template
 from minio import Minio
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from shared.models import Base, VideoModel, UserModel
+
+analytics_url = os.getenv('ANALYTICS_URL')
+
+
+def send_analytics_event(video_id: str, event_type: str, **kwargs):
+    if not analytics_url:
+        return
+    try:
+        requests.post(f"{analytics_url}/event",
+                      json={"video_id": video_id, "event_type": event_type, **kwargs},
+                      timeout=1)
+    except Exception:
+        pass
 
 # Valid file types
 VALID_TYPES = [".mp4", ".avi", ".webm", ".ogg"]
@@ -110,8 +124,13 @@ def upload_file():
     if not storage.bucket_exists(TMP_BUCKET):
         storage.make_bucket(TMP_BUCKET)
 
-    if db.session.query(VideoModel).filter_by(id=file_hash).first():
-        return f"File already exists!", 400
+    existing = db.session.query(VideoModel).filter_by(id=file_hash).first()
+    if existing:
+        if existing.status == 'error':
+            db.session.delete(existing)
+            db.session.commit()
+        else:
+            return f"File already exists!", 400
 
     try:
         # Upload temp raw video
@@ -129,14 +148,18 @@ def upload_file():
 
     # Add video metadata to SQL database
     # TODO: Link data to user
+    default_user = db.session.query(UserModel).first()
     video_data = VideoModel(
         id=file_hash,
-        user_id=0,
+        user_id=default_user.id,
         title=file_name,
         status='pending'
     )
     db.session.add(video_data)
     db.session.commit()
+
+    # Notify analytics of upload event
+    send_analytics_event(file_hash, 'upload', user_ip=request.remote_addr)
 
     # Start video transcoding process
     celery_app.send_task('tasks.transcode_video', args=[file_hash])

@@ -5,7 +5,7 @@ import os
 from datetime import datetime, UTC
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from shared.models import Base, VideoEvent, VideoStats
+from shared.models import Base, VideoEvent, VideoStats, MLPrediction
 
 # Config
 postgres_endpoint = os.getenv('POSTGRES_URL')
@@ -15,6 +15,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = postgres_endpoint
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app, model_class=Base)
+
+with app.app_context():
+    db.create_all()
 
 #  Routes
 
@@ -52,7 +55,7 @@ def _update_stats(video_id: str, event_type: str):
     """Maintain a running aggregated stats row per video."""
     stats = db.session.query(VideoStats).filter_by(video_id=video_id).first()
     if not stats:
-        stats = VideoStats(video_id=video_id)
+        stats = VideoStats(video_id=video_id, total_requests=0, cache_hits=0, cache_misses=0)
         db.session.add(stats)
 
     if event_type == 'cache_hit':
@@ -170,6 +173,9 @@ def get_events():
         "timestamp": e.timestamp.isoformat()
     } for e in events]), 200
 
+
+from ml_routes import register_ml_routes
+register_ml_routes(app, db)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=False)

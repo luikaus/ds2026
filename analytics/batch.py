@@ -29,14 +29,15 @@ def run_batch(window_hours: int = 1):
         print(f"[BATCH] Running batch for window: last {window_hours}h (since {since.isoformat()})")
 
         #  Aggregate request counts per video
+        from sqlalchemy import case
         rows = (session.query(
                     VideoEvent.video_id,
                     func.count(VideoEvent.id).label('total'),
                     func.sum(
-                        (VideoEvent.event_type == 'cache_hit').cast('int')
+                        case((VideoEvent.event_type == 'cache_hit', 1), else_=0)
                     ).label('hits'),
                     func.sum(
-                        (VideoEvent.event_type == 'cache_miss').cast('int')
+                        case((VideoEvent.event_type == 'cache_miss', 1), else_=0)
                     ).label('misses')
                 )
                 .filter(VideoEvent.timestamp >= since)

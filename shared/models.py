@@ -1,5 +1,6 @@
-from sqlalchemy import Column, String, DateTime, Integer, Float
+from sqlalchemy import Column, String, DateTime, Integer, Float, CheckConstraint, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
 from datetime import datetime, UTC
 
 Base = declarative_base()
@@ -42,7 +43,9 @@ class VideoModel(Base):
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     title = Column(String(255), nullable=False)
     status = Column(String(20), nullable=False, default='pending')
-    created_at = Column(DateTime, nullable=False, default=datetime.now(UTC))
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
+
+    user = relationship('UserModel', back_populates='videos')
 
 
 """ 
