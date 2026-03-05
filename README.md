@@ -6,7 +6,7 @@ Contains a placeholder core and edge server and a Docker Compose project for run
 
 
 ## Demo video
-[demo_video.mp4](https://github.com/luikaus/ds2026/blob/main/demo_video.mp4)
+[demo_video.mp4](https://github.com/luikaus/ds2026/demo_video.mp4)
 
 ## Running
 
