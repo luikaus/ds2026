@@ -1,8 +1,3 @@
-"""
-Resource Scheduler — Increment 6
-Reads ML predictions and popularity stats, then pre-warms edge node caches
-for high-demand ("hot") videos so popular content is always served from cache.
-"""
 import os
 import requests
 from datetime import datetime, UTC
@@ -25,10 +20,6 @@ TOP_N = 5            # max videos to pre-warm per run
 
 
 def get_hot_videos(session, top_n=TOP_N, threshold=HOT_THRESHOLD):
-    """
-    Returns the top-N videos whose latest ML prediction >= threshold,
-    ordered by predicted demand (highest first).
-    """
     subq = (session.query(
                 MLPrediction.video_id,
                 func.max(MLPrediction.predicted_at).label('latest')
@@ -44,11 +35,6 @@ def get_hot_videos(session, top_n=TOP_N, threshold=HOT_THRESHOLD):
 
 
 def warm_edge_cache(video_id: str, edge_url: str) -> list:
-    """
-    Pre-fetches a video's HLS content from an edge node to warm its cache.
-    Fetches: master.m3u8, thumbnail, each variant's index.m3u8 and seg_000.ts.
-    Returns a list of {url, status, cache_status} dicts.
-    """
     results = []
 
     def fetch(url):
@@ -92,10 +78,7 @@ def warm_edge_cache(video_id: str, edge_url: str) -> list:
 
 
 def run_scheduler(top_n=TOP_N, threshold=HOT_THRESHOLD) -> dict:
-    """
-    Main entry point: identifies hot videos and pre-warms both edge node caches.
-    Returns a summary with per-video, per-edge warming results.
-    """
+
     session = Session()
     try:
         hot_videos = get_hot_videos(session, top_n=top_n, threshold=threshold)
