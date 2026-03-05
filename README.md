@@ -4,6 +4,10 @@ Stub repo for Distributed Systems 2026 project.
 
 Contains a placeholder core and edge server and a Docker Compose project for running them in containers.
 
+
+## Demo video
+[demo_video.mp4](https://github.com/luikaus/ds2026/blob/main/demo_video.mp4)
+
 ## Running
 
 To run the entire project, run the following command with Docker installed
